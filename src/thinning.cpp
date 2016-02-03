@@ -1,5 +1,6 @@
 #include "skeleton_filter.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
+#include <iostream>
 
 static void GuoHallIteration(cv::Mat& im, int iter)
 {
@@ -57,7 +58,8 @@ void GuoHallThinning(const cv::Mat& src, cv::Mat& dst)
 //
 // Place optimized version here
 //
-uchar encodeNeghbourhood(cv::Mat& source, int i, int j) {
+
+int getCodeNeghbourhood(cv::Mat& source, int i, int j) {
 
     uchar p2 = source.at<uchar>(i-1, j);
     uchar p3 = source.at<uchar>(i-1, j+1);
@@ -68,36 +70,48 @@ uchar encodeNeghbourhood(cv::Mat& source, int i, int j) {
     uchar p8 = source.at<uchar>(i, j-1);
     uchar p9 = source.at<uchar>(i-1, j-1);
 
-    uchar code = p2 * 1 +
-                 p3 * 2 +
-                 p4 * 4 +
-                 p5 * 8 +
-                 p6 * 16 +
-                 p7 * 32 +
-                 p8 * 64 +
-                 p9 * 128;
+    int code = (int) p2 * 1 +
+               (int) p3 * 2 +
+               (int) p4 * 4 +
+               (int) p5 * 8 +
+               (int) p6 * 16 +
+               (int) p7 * 32 +
+               (int) p8 * 64 +
+               (int) p9 * 128;
+
 
     return code;
 }
 
-uchar* generateMaskMatrixForGuoHall() {
-    uchar p2, p3, p4, p5, p6, p7, p8, p9;
+void generateMaskMatrixForGuoHall(uchar*  maskMatrix, int iter) {
+    int p2, p3, p4, p5, p6, p7, p8, p9;  
 
-    for(uchar code = 0; code < 255; ++code) {
-        p2 = code & 1;
-        p3 = code & 2;
-        p4 = code & 4;
-        p5 = code & 8;
-        p6 = code & 16;
-        p7 = code & 32;
-        p8 = code & 64;
-        p9 = code & 128;
+    for(int code = 0; code < 256; ++code) 
+    {
+        p2 = ((code & (int)1) >> 0);
+        p3 = ((code & (int)2) >> 1);
+        p4 = ((code & (int)4) >> 2);
+        p5 = ((code & (int)8) >> 3);
+        p6 = ((code & (int)16) >> 4);
+        p7 = ((code & (int)32) >> 5);
+        p8 = ((code & (int)64) >> 6);
+        p9 = ((code & (int)128) >> 7);
+
+        int C  = (!p2 & (p3 | p4)) + (!p4 & (p5 | p6)) +
+                         (!p6 & (p7 | p8)) + (!p8 & (p9 | p2));
+        int N1 = (p9 | p2) + (p3 | p4) + (p5 | p6) + (p7 | p8);
+        int N2 = (p2 | p3) + (p4 | p5) + (p6 | p7) + (p8 | p9);
+        int N  = N1 < N2 ? N1 : N2;
+        int m  = iter == 0 ? ((p6 | p7 | !p9) & p8) : ((p2 | p3 | !p5) & p4);
+
+        if (C == 1 && (N >= 2 && N <= 3) & (m == 0)) 
+            maskMatrix[code] = 1;
+        else
+            maskMatrix[code] = 0;     
     }
-
-    return NULL;
 }
 
-static void GuoHallIteration_optimized(cv::Mat& im, int iter)
+static void GuoHallIteration_optimized(cv::Mat& im, const uchar* maskMatrix)
 {
     cv::Mat marker = cv::Mat::zeros(im.size(), CV_8UC1);
 
@@ -105,25 +119,10 @@ static void GuoHallIteration_optimized(cv::Mat& im, int iter)
     {
         for (int j = 1; j < im.cols-1; j++)
         {
-            if(im.at<uchar>(i,j)) {
-                uchar p2 = im.at<uchar>(i-1, j);
-                uchar p3 = im.at<uchar>(i-1, j+1);
-                uchar p4 = im.at<uchar>(i, j+1);
-                uchar p5 = im.at<uchar>(i+1, j+1);
-                uchar p6 = im.at<uchar>(i+1, j);
-                uchar p7 = im.at<uchar>(i+1, j-1);
-                uchar p8 = im.at<uchar>(i, j-1);
-                uchar p9 = im.at<uchar>(i-1, j-1);
+            if(im.at<uchar>(i,j) != 0) {
+                int code = getCodeNeghbourhood(im, i, j);
 
-                int C  = (!p2 & (p3 | p4)) + (!p4 & (p5 | p6)) +
-                         (!p6 & (p7 | p8)) + (!p8 & (p9 | p2));
-                int N1 = (p9 | p2) + (p3 | p4) + (p5 | p6) + (p7 | p8);
-                int N2 = (p2 | p3) + (p4 | p5) + (p6 | p7) + (p8 | p9);
-                int N  = N1 < N2 ? N1 : N2;
-                int m  = iter == 0 ? ((p6 | p7 | !p9) & p8) : ((p2 | p3 | !p5) & p4);
-
-                if (C == 1 && (N >= 2 && N <= 3) & (m == 0))
-                    marker.at<uchar>(i,j) = 1;
+                marker.at<uchar>(i,j) |= maskMatrix[code];
             }
         }
     }
@@ -140,10 +139,15 @@ void GuoHallThinning_optimized(const cv::Mat& src, cv::Mat& dst)
     cv::Mat prev = cv::Mat::zeros(src.size(), CV_8UC1);
     cv::Mat diff;
 
+    uchar maskMatrix0[256];
+    uchar maskMatrix1[256];
+    generateMaskMatrixForGuoHall(maskMatrix0, 0);
+    generateMaskMatrixForGuoHall(maskMatrix1, 1);
+
     do
     {
-        GuoHallIteration_optimized(dst, 0);
-        GuoHallIteration_optimized(dst, 1);
+        GuoHallIteration_optimized(dst, maskMatrix0);
+        GuoHallIteration_optimized(dst, maskMatrix1);
         cv::absdiff(dst, prev, diff);
         dst.copyTo(prev);
     }
