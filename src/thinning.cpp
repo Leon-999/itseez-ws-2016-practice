@@ -122,7 +122,7 @@ static void GuoHallIteration_optimized(cv::Mat& im, const uchar* maskMatrix)
             if(im.at<uchar>(i,j) != 0) {
                 int code = getCodeNeghbourhood(im, i, j);
 
-                marker.at<uchar>(i,j) |= maskMatrix[code];
+                marker.at<uchar>(i,j) = maskMatrix[code];
             }
         }
     }
@@ -135,6 +135,7 @@ void GuoHallThinning_optimized(const cv::Mat& src, cv::Mat& dst)
     CV_Assert(CV_8UC1 == src.type());
 
     dst = src / 255;
+    //dst = src.clone();
 
     cv::Mat prev = cv::Mat::zeros(src.size(), CV_8UC1);
     cv::Mat diff;
