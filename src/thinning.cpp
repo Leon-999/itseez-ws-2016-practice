@@ -83,7 +83,7 @@ uchar encodeNeghbourhood(cv::Mat& source, int i, int j) {
 uchar* generateMaskMatrixForGuoHall() {
     uchar p2, p3, p4, p5, p6, p7, p8, p9;
 
-    for(uchar code = 0; code < 255; ++i) {
+    for(uchar code = 0; code < 255; ++code) {
         p2 = code & 1;
         p3 = code & 2;
         p4 = code & 4;
