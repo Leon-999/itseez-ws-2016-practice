@@ -11,7 +11,11 @@ void skeletonize(const cv::Mat &input, cv::Mat &output, bool save_images)
     if (save_images) cv::imwrite("0-input.png", input);
     TE(imwrite_0);
 
-    // Convert to grayscale
+    // Convert to grayscale my
+    cv::Mat gray_image_my;
+    ConvertColor_BGR2GRAY_BT709_fpt(input, gray_image_my);
+    if (save_images) cv::imwrite("1-convertcolor_my.png", gray_image_my);
+    // Convert to grayscale my
     cv::Mat gray_image;
     ConvertColor_BGR2GRAY_BT709(input, gray_image);
     if (save_images) cv::imwrite("1-convertcolor.png", gray_image);
