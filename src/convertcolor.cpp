@@ -53,8 +53,8 @@ void ConvertColor_BGR2GRAY_BT709(const cv::Mat& src, cv::Mat& dst)
     }
 }
 
-#define int_t unsigned int
-//#define int_t ushort
+//#define int_t unsigned int
+#define int_t ushort
 
 void ConvertColor_BGR2GRAY_BT709_fpt(const cv::Mat& src, cv::Mat& dst)
 {
@@ -62,8 +62,8 @@ void ConvertColor_BGR2GRAY_BT709_fpt(const cv::Mat& src, cv::Mat& dst)
     cv::Size sz = src.size();
     dst.create(sz, CV_8UC1);
 
-    int shift = 16;
-    //int shift = 8;
+    //int shift = 16;
+    int shift = 8;
 
     int_t redC = (int_t)(0.2126f * (1 << shift) + 0.5f);
     int_t greenC = (int_t)(0.7152f * (1 << shift) + 0.5f);
